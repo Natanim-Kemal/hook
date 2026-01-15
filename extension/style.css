@@ -1,0 +1,111 @@
+body {
+  width: 320px;
+  margin: 0;
+  padding: 0;
+  font-family: 'Clash Display', -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #F2F2F7;
+  color: #000;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8E8E93;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: -8px;
+  padding-left: 4px;
+}
+
+.main-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 30px 0;
+}
+
+.status-text {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #000;
+  transition: color 0.3s ease;
+}
+
+.status-text.safe {
+  color: #34C759;
+}
+
+.status-text.phishing {
+  color: #FF3B30;
+}
+
+.status-text.checking {
+  color: #8E8E93;
+}
+
+.info-card {
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8E8E93;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.url-text {
+  font-size: 14px;
+  color: #1C1C1E;
+  word-break: break-all;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.details-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1C1C1E;
+}
+
+.actions {
+  margin-top: 8px;
+}
+
+button {
+  width: 100%;
+  background-color: #007AFF;
+  color: white;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+button:active {
+  transform: scale(0.98);
+  background-color: #004494;
+}

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Link Scanner</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body>
+  <div class="app-container">
+    <div class="header">STATUS</div>
+
+    <div class="main-display">
+      <div id="status" class="status-text">Scanning</div>
+    </div>
+
+    <div class="info-card">
+      <div class="label">URL</div>
+      <div id="url" class="url-text"></div>
+    </div>
+
+    <div class="info-card">
+      <div class="label">CONFIDENCE</div>
+      <div id="details" class="details-text">--</div>
+    </div>
+
+    <div class="actions">
+      <button id="checkBtn">Re-scan</button>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+
+</html>
