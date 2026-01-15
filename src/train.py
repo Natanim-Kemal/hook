@@ -1,0 +1,84 @@
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+import joblib
+import os
+from feature_extraction import extract_features, get_feature_names
+from ucimlrepo import fetch_ucirepo 
+
+MODEL_PATH = 'model.pkl'
+
+def train():
+    print("Fetching PhiUSIIL Phishing URL Dataset from UCI Repo...")
+    try:
+        phiusiil_phishing_url_website = fetch_ucirepo(id=967) 
+        
+    
+        X_uci = phiusiil_phishing_url_website.data.features
+        y_uci = phiusiil_phishing_url_website.data.targets
+        
+        df = pd.concat([X_uci, y_uci], axis=1)
+        url_col = None
+        for col in df.columns:
+            if 'url' in col.lower():
+                url_col = col
+                break
+        
+        if not url_col:
+            print("Error: Could not find URL column in UCI dataset.")
+            return
+
+        print(f"Dataset URL column: {url_col}")
+        
+        initial_count = len(df)
+        df_clean = df.drop_duplicates(subset=[url_col], keep='first')
+        print(f"Removed {initial_count - len(df_clean)} duplicate URLs. Total unique: {len(df_clean)}")
+        
+        train_df, test_df = train_test_split(df_clean, test_size=0.2, random_state=42, stratify=df_clean.iloc[:,-1])
+        
+        print(f"Training set: {len(train_df)}, Test set: {len(test_df)}")
+
+        print("Extracting features for Training set...")
+        X_train_list = train_df[url_col].astype(str).apply(extract_features).tolist()
+        y_train = train_df.iloc[:,-1].tolist()
+
+        print("Extracting features for Test set...")
+        X_test_list = test_df[url_col].astype(str).apply(extract_features).tolist()
+        y_test = test_df.iloc[:,-1].tolist()
+        
+        X_train = pd.DataFrame(X_train_list, columns=get_feature_names())
+        X_test = pd.DataFrame(X_test_list, columns=get_feature_names())
+
+        print(f"Features used: {list(X_train.columns)}")
+
+        print("Training Random Forest model (n_estimators=100)...")
+        clf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+        
+        cv_scores = cross_val_score(clf, X_train, y_train, cv=5)
+        print(f"Cross-Validation Accuracy (Train): {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+        
+        clf.fit(X_train, y_train)
+
+        print("\n--- Final Evaluation on Test Set ---")
+        y_pred = clf.predict(X_test)
+        acc = accuracy_score(y_test, y_pred)
+        print(f"Test Accuracy: {acc:.4f}")
+        print("\nClassification Report:")
+        print(classification_report(y_test, y_pred))
+        
+        print("\nConfusion Matrix:")
+        print(confusion_matrix(y_test, y_pred))
+
+        print(f"\nSaving model to {MODEL_PATH}...")
+        joblib.dump(clf, MODEL_PATH)
+        print("Done!")
+
+    except Exception as e:
+        print(f"Error checking/processing UCI data: {e}")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == "__main__":
+    train()
