@@ -16,7 +16,7 @@ async function handleUrlChange(tabId, url) {
     }
 
     const domain = getDomain(url);
-    if (WHITELIST.has(domain)) {
+    if (isWhitelisted(domain)) {
         updateStatus(tabId, { result: 'LEGITIMATE', url: url }, true);
         return;
     }
@@ -32,11 +32,21 @@ async function handleUrlChange(tabId, url) {
 
 function getDomain(url) {
     try {
-        const hostname = new URL(url).hostname;
-        return hostname.startsWith('www.') ? hostname : hostname;
+        return new URL(url).hostname;
     } catch {
         return '';
     }
+}
+
+function isWhitelisted(hostname) {
+    if (WHITELIST.has(hostname)) return true;
+
+    for (const domain of WHITELIST) {
+        if (hostname.endsWith('.' + domain) && !domain.startsWith('www.')) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function shouldScan(url) {

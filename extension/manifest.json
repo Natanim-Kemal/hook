@@ -5,7 +5,8 @@
   "description": "Detects phishing websites using a local ML model.",
   "permissions": [
     "activeTab",
-    "notifications"
+    "notifications",
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>"

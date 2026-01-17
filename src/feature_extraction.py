@@ -47,15 +47,69 @@ def count_digits(url):
     return sum(c.isdigit() for c in url)
 
 def count_special_chars(url):
-    special_chars = ['@', '?', '-', '=', '_', '%']
+    special_chars = ['@', '?', '-', '=', '_', '%', '&', '!', '+', '*']
     return sum(url.count(char) for char in special_chars)
 
 def has_https(url):
-    return 1 if "https" in url else 0
+    return 1 if url.lower().startswith("https") else 0
 
 def suspicious_words_count(url):
-    suspicious = ['login', 'secure', 'account', 'verify', 'update', 'banking', 'confirm']
-    return sum(1 for word in suspicious if word in url.lower())
+    suspicious = [
+        'login', 'secure', 'account', 'verify', 'update', 'banking', 
+        'confirm', 'password', 'signin', 'credential', 'suspend',
+        'unusual', 'confirm', 'authenticate', 'wallet', 'recover',
+        'unlock', 'alert', 'notification', 'security', 'urgent'
+    ]
+    url_lower = url.lower()
+    return sum(1 for word in suspicious if word in url_lower)
+
+def has_at_symbol(url):
+    return 1 if '@' in url else 0
+
+def has_double_slash_redirect(url):
+    try:
+        path = urlparse(url).path
+        return 1 if '//' in path else 0
+    except:
+        return 0
+
+def has_hyphen_in_domain(url):
+    try:
+        hostname = urlparse(url).netloc
+        return 1 if '-' in hostname else 0
+    except:
+        return 0
+
+def get_path_length(url):
+    try:
+        return len(urlparse(url).path)
+    except:
+        return 0
+
+def count_query_params(url):
+    try:
+        query = urlparse(url).query
+        if not query:
+            return 0
+        return query.count('=')
+    except:
+        return 0
+
+def has_suspicious_tld(url):
+    suspicious_tlds = ['.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.work', '.click', '.link', '.info']
+    url_lower = url.lower()
+    for tld in suspicious_tlds:
+        if tld in url_lower:
+            return 1
+    return 0
+
+def domain_token_count(url):
+    try:
+        hostname = urlparse(url).netloc
+        tokens = re.split(r'[.\-]', hostname)
+        return len([t for t in tokens if t])
+    except:
+        return 0
 
 def extract_features(url):
     return [
@@ -69,7 +123,14 @@ def extract_features(url):
         count_special_chars(url),
         calculate_entropy(url),
         has_https(url),
-        suspicious_words_count(url)
+        suspicious_words_count(url),
+        has_at_symbol(url),
+        has_double_slash_redirect(url),
+        has_hyphen_in_domain(url),
+        get_path_length(url),
+        count_query_params(url),
+        has_suspicious_tld(url),
+        domain_token_count(url)
     ]
 
 def get_feature_names():
@@ -84,5 +145,12 @@ def get_feature_names():
         'special_char_count',
         'entropy',
         'has_https',
-        'sus_words_count'
+        'sus_words_count',
+        'has_at_symbol',
+        'has_double_slash',
+        'has_hyphen_domain',
+        'path_length',
+        'query_param_count',
+        'has_sus_tld',
+        'domain_token_count'
     ]
