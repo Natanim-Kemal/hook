@@ -81,7 +81,7 @@ This project intentionally includes security vulnerabilities for educational pur
 
 > ⚠️ **Warning**: This code contains intentional vulnerabilities for demonstration. Do not use in production!
 
-## 📚 Assignment Information
+## Assignment Information
 
 **Course:** Software Security  
 **Topic:** CI/CD Pipeline with Static & Dynamic Analysis  
@@ -96,6 +96,6 @@ This project intentionally includes security vulnerabilities for educational pur
 - Natanim Kemal - UGR/4648/14
 
 
-## 📝 License
+## License
 
 Educational use only.
