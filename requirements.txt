@@ -6,3 +6,5 @@ requests
 flask
 flask-cors
 ucimlrepo
+pytest
+gunicorn
