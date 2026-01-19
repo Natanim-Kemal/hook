@@ -23,19 +23,20 @@ def load_model_and_scaler():
         else:
             print(f"Model not found at {MODEL_PATH}.")
             return False
-            
+           
         if os.path.exists(SCALER_PATH):
             scaler = joblib.load(SCALER_PATH)
             print("Scaler loaded successfully.")
         else:
             print(f"Scaler not found at {SCALER_PATH}. Using unscaled features.")
             scaler = None
-            
+           
         return True
     except Exception as e:
         print(f"Error loading model/scaler: {e}")
         return False
 
+# Load on startup
 load_model_and_scaler()
 
 def reload_if_needed():
@@ -47,59 +48,73 @@ def reload_if_needed():
 @app.route('/predict', methods=['POST'])
 def predict():
     if not reload_if_needed():
-        return jsonify({'error': 'Model is currently training/loading. Please wait a moment and try again.'}), 503
+        return jsonify({'error': 'Model is currently loading. Please try again in a moment.'}), 503
 
     data = request.get_json()
     if not data or 'url' not in data:
-        return jsonify({'error': 'No URL provided'}), 400
+        return jsonify({'error': 'No URL provided in request body.'}), 400
 
-    url = data['url']
-    
+    url = data['url'].strip()
+
     try:
+        # Extract features from the input URL
         features = extract_features(url)
         features_df = pd.DataFrame([features], columns=get_feature_names())
-        
+
+        # Scale features if scaler is available
         if scaler is not None:
             features_scaled = scaler.transform(features_df)
         else:
             features_scaled = features_df.values
-        
+
+        # Predict
         prediction = model.predict(features_scaled)[0]
         probs = model.predict_proba(features_scaled)[0]
-        
-        # Classes are [0, 1] where 0=legitimate, 1=phishing
-        phishing_prob = probs[1] if len(probs) > 1 else probs[0]
-        
-        result = "PHISHING" if prediction == 1 else "LEGITIMATE"
-        confidence = probs[prediction]
-        
+
+        # IMPORTANT: In PhiUSIIL dataset:
+        # Class 0 = Phishing
+        # Class 1 = Legitimate
+        # predict_proba returns [prob_phishing, prob_legitimate]
+        phishing_prob = float(probs[0])
+        legitimate_prob = float(probs[1]) if len(probs) > 1 else 1.0 - phishing_prob
+
+        confidence = float(probs[prediction])  # Confidence in the final decision
+
+        result = "PHISHING" if prediction == 0 else "LEGITIMATE"
+
         return jsonify({
             'url': url,
             'result': result,
-            'probability': float(confidence),
-            'phishing_score': float(phishing_prob)
+            'confidence': confidence,           # How sure the model is about its decision
+            'phishing_score': phishing_prob,    # Probability it's phishing (0.0 to 1.0)
+            'legitimate_score': legitimate_prob
         })
-        
+
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Prediction failed', 'details': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({
-        'status': 'ok', 
+        'status': 'ok',
         'model_loaded': model is not None,
         'scaler_loaded': scaler is not None
     })
 
 @app.route('/reload', methods=['POST'])
 def reload():
+    """Manually trigger reload of model and scaler (useful after retraining)"""
     global model, scaler
     model = None
     scaler = None
     success = load_model_and_scaler()
-    return jsonify({'success': success})
+    return jsonify({
+        'success': success,
+        'model_loaded': model is not None,
+        'scaler_loaded': scaler is not None
+    })
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)

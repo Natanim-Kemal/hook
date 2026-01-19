@@ -1,8 +1,11 @@
+// background.js
+
 import { WHITELIST } from './whitelist.js';
 
 const API_URL = 'http://127.0.0.1:5000/predict';
-const CACHE_DURATION = 24 * 60 * 60 * 1000;
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
+// Listen for tab updates (page fully loaded)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url) {
         handleUrlChange(tabId, tab.url);
@@ -17,7 +20,8 @@ async function handleUrlChange(tabId, url) {
 
     const domain = getDomain(url);
     if (isWhitelisted(domain)) {
-        updateStatus(tabId, { result: 'LEGITIMATE', url: url }, true);
+        const fakeData = { result: 'LEGITIMATE', url: url, confidence: 1.0 };
+        updateStatus(tabId, fakeData, true);
         return;
     }
 
@@ -40,7 +44,6 @@ function getDomain(url) {
 
 function isWhitelisted(hostname) {
     if (WHITELIST.has(hostname)) return true;
-
     for (const domain of WHITELIST) {
         if (hostname.endsWith('.' + domain) && !domain.startsWith('www.')) {
             return true;
@@ -57,7 +60,7 @@ function shouldScan(url) {
 }
 
 function resetBadge(tabId) {
-    chrome.action.setBadgeText({ text: '', tabId: tabId });
+    chrome.action.setBadgeText({ text: '', tabId });
 }
 
 async function getFromCache(url) {
@@ -85,8 +88,8 @@ async function saveToCache(url, data) {
 }
 
 async function scanUrl(tabId, url) {
-    chrome.action.setBadgeText({ text: '...', tabId: tabId });
-    chrome.action.setBadgeBackgroundColor({ color: '#FFA500', tabId: tabId });
+    chrome.action.setBadgeText({ text: '...', tabId });
+    chrome.action.setBadgeBackgroundColor({ color: '#FFA500', tabId });
 
     try {
         const response = await fetch(API_URL, {
@@ -98,22 +101,28 @@ async function scanUrl(tabId, url) {
         if (!response.ok) throw new Error('API Error');
 
         const data = await response.json();
-
-        saveToCache(url, data);
-
+        await saveToCache(url, data);
         updateStatus(tabId, data, false);
 
     } catch (error) {
         console.error('Scan error:', error);
-        chrome.action.setBadgeText({ text: 'ERR', tabId: tabId });
-        chrome.action.setBadgeBackgroundColor({ color: '#8E8E93', tabId: tabId });
+        chrome.action.setBadgeText({ text: 'ERR', tabId });
+        chrome.action.setBadgeBackgroundColor({ color: '#8E8E93', tabId });
     }
 }
 
 function updateStatus(tabId, data, fromCache) {
-    if (data.result === 'PHISHING') {
-        chrome.action.setBadgeText({ text: 'DIE', tabId: tabId });
-        chrome.action.setBadgeBackgroundColor({ color: '#FF3B30', tabId: tabId });
+    if (!data || !data.result) {
+        chrome.action.setBadgeText({ text: 'ERR', tabId });
+        chrome.action.setBadgeBackgroundColor({ color: '#8E8E93', tabId });
+        return;
+    }
+
+    const isPhishing = data.result.toLowerCase() === 'phishing';
+
+    if (isPhishing) {
+        chrome.action.setBadgeText({ text: 'DIE', tabId });
+        chrome.action.setBadgeBackgroundColor({ color: '#FF3B30', tabId });
 
         chrome.notifications.create({
             type: 'basic',
@@ -123,14 +132,34 @@ function updateStatus(tabId, data, fromCache) {
             priority: 2
         });
 
-        chrome.tabs.sendMessage(tabId, { action: "SHOW_WARNING" }).catch(() => { });
-
+        chrome.tabs.sendMessage(tabId, { 
+            action: "SHOW_WARNING", 
+            data: data 
+        }).catch(() => {});
     } else {
-        chrome.action.setBadgeText({ text: 'OK', tabId: tabId });
-        chrome.action.setBadgeBackgroundColor({ color: '#34C759', tabId: tabId });
+        chrome.action.setBadgeText({ text: 'OK', tabId });
+        chrome.action.setBadgeBackgroundColor({ color: '#34C759', tabId });
 
         setTimeout(() => {
-            chrome.action.setBadgeText({ text: '', tabId: tabId });
+            chrome.action.setBadgeText({ text: '', tabId });
         }, 3000);
     }
+
+    // Critical: Send result to popup for BOTH cases!
+    chrome.runtime.sendMessage({
+        action: "UPDATE_DETAILS",
+        data: data
+    }).catch(() => {}); // Popup may be closed
 }
+
+// Allow popup to trigger a fresh scan
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "SCAN_CURRENT_TAB") {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0] && tabs[0].url) {
+                handleUrlChange(tabs[0].id, tabs[0].url);
+            }
+        });
+        return true; // Keep message channel open if needed
+    }
+});
