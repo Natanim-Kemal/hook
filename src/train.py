@@ -5,7 +5,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 import joblib
-import os
 from feature_extraction import extract_features, get_feature_names
 from ucimlrepo import fetch_ucirepo 
 
@@ -14,6 +13,7 @@ SCALER_PATH = 'scaler.pkl'
 
 def train():
     print("Fetching PhiUSIIL Phishing URL Dataset from UCI Repo...")
+
     try:
         phiusiil_phishing_url_website = fetch_ucirepo(id=967) 
         
@@ -88,8 +88,8 @@ def train():
         print(f"Test Accuracy: {acc:.4f}")
         print("\nClassification Report:")
         print(classification_report(y_test, y_pred))
-        
-        print("\nConfusion Matrix:")
+
+        print("Confusion Matrix:")
         print(confusion_matrix(y_test, y_pred))
         
         print("\nFeature Importance:")
@@ -106,7 +106,7 @@ def train():
         print("Done!")
 
     except Exception as e:
-        print(f"Error checking/processing UCI data: {e}")
+        print("Training failed:")
         import traceback
         traceback.print_exc()
 

@@ -2,8 +2,63 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import joblib
 import pandas as pd
+import numpy as np
 from feature_extraction import extract_features, get_feature_names
 import os
+
+def calculate_feature_based_confidence(features, prediction, model_prob):
+    feature_names = get_feature_names()
+    feature_dict = dict(zip(feature_names, features))
+    
+    risk_weights = {
+        'has_ip': 0.15,
+        'has_https': -0.12,
+        'has_sus_tld': 0.12,
+        'sus_words_count': 0.08,
+        'has_at_symbol': 0.10,
+        'has_double_slash': 0.08,
+        'digit_count': 0.03,
+        'special_char_count': 0.02,
+        'url_len': 0.02,
+        'subdomain_count': 0.03,
+        'has_hyphen_domain': 0.04,
+        'path_length': 0.02,
+        'query_param_count': 0.02,
+        'entropy': 0.03,
+    }
+    
+    risk_score = 0.5
+    
+    for feature, weight in risk_weights.items():
+        if feature in feature_dict:
+            value = feature_dict[feature]
+            if feature == 'url_len':
+                value = min(value / 100, 1.0)
+            elif feature == 'digit_count':
+                value = min(value / 20, 1.0)
+            elif feature == 'special_char_count':
+                value = min(value / 10, 1.0)
+            elif feature == 'subdomain_count':
+                value = min(value / 5, 1.0)
+            elif feature == 'sus_words_count':
+                value = min(value / 3, 1.0)
+            elif feature == 'path_length':
+                value = min(value / 50, 1.0)
+            elif feature == 'query_param_count':
+                value = min(value / 5, 1.0)
+            elif feature == 'entropy':
+                value = min(value / 5, 1.0)
+            
+            risk_score += weight * value
+    
+    risk_score = max(0.1, min(0.95, risk_score))
+    
+    if prediction == 0:
+        confidence = 0.5 + (risk_score * 0.4) + (model_prob * 0.1)
+    else:
+        confidence = 0.5 + ((1 - risk_score) * 0.4) + (model_prob * 0.1)
+    
+    return max(0.55, min(0.98, confidence)), risk_score
 
 app = Flask(__name__)
 CORS(app)
@@ -51,13 +106,21 @@ def predict():
 
     data = request.get_json()
     if not data or 'url' not in data:
-        return jsonify({'error': 'No URL provided'}), 400
+        return jsonify({'error': 'No URL provided in request body.'}), 400
 
-    url = data['url']
-    
+    url = data['url'].strip()
+
     try:
         features = extract_features(url)
         features_df = pd.DataFrame([features], columns=get_feature_names())
+
+        if scaler is not None:
+            features_scaled = scaler.transform(features_df)
+        else:
+            features_scaled = features_df.values
+
+        prediction = model.predict(features_scaled)[0]
+        raw_probs = model.predict_proba(features_scaled)[0]
         
         if scaler is not None:
             features_scaled = scaler.transform(features_df)
@@ -79,7 +142,7 @@ def predict():
             'probability': float(confidence),
             'phishing_score': float(phishing_prob)
         })
-        
+
     except Exception as e:
         import traceback
         traceback.print_exc()

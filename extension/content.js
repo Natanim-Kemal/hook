@@ -1,11 +1,13 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "SHOW_WARNING") {
-        showWarningBanner();
+        showWarningBanner(request.data);
+    } else if (request.action === "HIDE_WARNING") {
+        hideWarningBanner();
     }
 });
 
-function showWarningBanner() {
-    if (document.getElementById('phish-guard-warning')) return;
+function showWarningBanner(data) {
+    hideWarningBanner();
 
     const banner = document.createElement('div');
     banner.id = 'phish-guard-warning';
@@ -20,17 +22,40 @@ function showWarningBanner() {
     banner.style.fontSize = '18px';
     banner.style.fontWeight = 'bold';
     banner.style.zIndex = '999999';
-    banner.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+    banner.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
+    banner.style.transition = 'opacity 0.3s';
+
+    const phishingPercent = data.phishing_score ? (data.phishing_score * 100).toFixed(1) : 'High';
+    const confidencePercent = data.confidence ? (data.confidence * 100).toFixed(1) : '';
+
     banner.innerHTML = `
-    ⚠️ WARNING: PHISHING DETECTED ⚠️
-    <br>
-    <span style="font-size: 14px; font-weight: normal;">This site has been identified as a potential phishing attempt. Do not enter any sensitive information.</span>
-    <button id="phish-guard-close" style="margin-left: 20px; padding: 5px 10px; background: white; color: #FF3B30; border: none; border-radius: 4px; cursor: pointer;">Dismiss</button>
-  `;
+        ⚠️ PHISHING SITE DETECTED ⚠️<br>
+        <span style="font-size: 15px; font-weight: normal;">
+            Our AI model is ${confidencePercent}% confident this is a phishing attempt.<br>
+            Phishing likelihood: <strong>${phishingPercent}%</strong> • URL: ${escapeHtml(data.url || 'unknown')}
+        </span>
+        <button id="phish-guard-close" style="margin-left: 20px; padding: 6px 12px; background: white; color: #FF3B30; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+            I Understand, Dismiss
+        </button>
+    `;
 
     document.body.prepend(banner);
 
     document.getElementById('phish-guard-close').addEventListener('click', () => {
-        banner.remove();
+        banner.style.opacity = '0';
+        setTimeout(() => banner.remove(), 300);
     });
+}
+
+function hideWarningBanner() {
+    const existing = document.getElementById('phish-guard-warning');
+    if (existing) {
+        existing.remove();
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
