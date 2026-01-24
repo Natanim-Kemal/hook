@@ -1,5 +1,3 @@
-// content.js
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "SHOW_WARNING") {
         showWarningBanner(request.data);  // Now passing the full API response data
