@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# VS Code
+.vscode/
+
+# Models and Data
+*.pkl
+model.pkl
+scaler.pkl
+
+# Logs and Results
+*.log
+realworld_results.txt
+
+# OS generated files
+.DS_Store
+Thumbs.db
