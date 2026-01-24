@@ -17,8 +17,7 @@ async function handleUrlChange(tabId, url) {
 
     const domain = getDomain(url);
     if (isWhitelisted(domain)) {
-        const fakeData = { result: 'LEGITIMATE', url: url, confidence: 1.0 };
-        updateStatus(tabId, fakeData, true);
+        updateStatus(tabId, { result: 'LEGITIMATE', url: url }, true);
         return;
     }
 
@@ -41,6 +40,7 @@ function getDomain(url) {
 
 function isWhitelisted(hostname) {
     if (WHITELIST.has(hostname)) return true;
+
     for (const domain of WHITELIST) {
         if (hostname.endsWith('.' + domain) && !domain.startsWith('www.')) {
             return true;

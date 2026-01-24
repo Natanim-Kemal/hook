@@ -78,14 +78,14 @@ def load_model_and_scaler():
         else:
             print(f"Model not found at {MODEL_PATH}.")
             return False
-           
+            
         if os.path.exists(SCALER_PATH):
             scaler = joblib.load(SCALER_PATH)
             print("Scaler loaded successfully.")
         else:
             print(f"Scaler not found at {SCALER_PATH}. Using unscaled features.")
             scaler = None
-           
+            
         return True
     except Exception as e:
         print(f"Error loading model/scaler: {e}")
@@ -102,7 +102,7 @@ def reload_if_needed():
 @app.route('/predict', methods=['POST'])
 def predict():
     if not reload_if_needed():
-        return jsonify({'error': 'Model is currently loading. Please try again in a moment.'}), 503
+        return jsonify({'error': 'Model is currently training/loading. Please wait a moment and try again.'}), 503
 
     data = request.get_json()
     if not data or 'url' not in data:
@@ -122,33 +122,36 @@ def predict():
         prediction = model.predict(features_scaled)[0]
         raw_probs = model.predict_proba(features_scaled)[0]
         
-        confidence, risk_score = calculate_feature_based_confidence(
-            features, prediction, raw_probs[prediction]
-        )
-
-        phishing_prob = float(raw_probs[0])
-        legitimate_prob = float(raw_probs[1]) if len(raw_probs) > 1 else 1.0 - phishing_prob
-
-        result = "PHISHING" if prediction == 0 else "LEGITIMATE"
-
+        if scaler is not None:
+            features_scaled = scaler.transform(features_df)
+        else:
+            features_scaled = features_df.values
+        
+        prediction = model.predict(features_scaled)[0]
+        probs = model.predict_proba(features_scaled)[0]
+        
+        # Classes are [0, 1] where 0=legitimate, 1=phishing
+        phishing_prob = probs[1] if len(probs) > 1 else probs[0]
+        
+        result = "PHISHING" if prediction == 1 else "LEGITIMATE"
+        confidence = probs[prediction]
+        
         return jsonify({
             'url': url,
             'result': result,
-            'confidence': confidence,
-            'risk_score': risk_score,
-            'phishing_score': phishing_prob,
-            'legitimate_score': legitimate_prob
+            'probability': float(confidence),
+            'phishing_score': float(phishing_prob)
         })
 
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': 'Prediction failed', 'details': str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({
-        'status': 'ok',
+        'status': 'ok', 
         'model_loaded': model is not None,
         'scaler_loaded': scaler is not None
     })
@@ -159,11 +162,7 @@ def reload():
     model = None
     scaler = None
     success = load_model_and_scaler()
-    return jsonify({
-        'success': success,
-        'model_loaded': model is not None,
-        'scaler_loaded': scaler is not None
-    })
+    return jsonify({'success': success})
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
