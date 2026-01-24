@@ -1,13 +1,12 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "SHOW_WARNING") {
-        showWarningBanner(request.data);  // Now passing the full API response data
+        showWarningBanner(request.data);
     } else if (request.action === "HIDE_WARNING") {
         hideWarningBanner();
     }
 });
 
 function showWarningBanner(data) {
-    // Prevent multiple banners
     hideWarningBanner();
 
     const banner = document.createElement('div');
@@ -26,7 +25,6 @@ function showWarningBanner(data) {
     banner.style.boxShadow = '0 4px 10px rgba(0,0,0,0.3)';
     banner.style.transition = 'opacity 0.3s';
 
-    // Use actual result and confidence from API
     const phishingPercent = data.phishing_score ? (data.phishing_score * 100).toFixed(1) : 'High';
     const confidencePercent = data.confidence ? (data.confidence * 100).toFixed(1) : '';
 
@@ -43,7 +41,6 @@ function showWarningBanner(data) {
 
     document.body.prepend(banner);
 
-    // Close button
     document.getElementById('phish-guard-close').addEventListener('click', () => {
         banner.style.opacity = '0';
         setTimeout(() => banner.remove(), 300);
@@ -57,7 +54,6 @@ function hideWarningBanner() {
     }
 }
 
-// Simple HTML escape to prevent XSS if URL has weird chars
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;

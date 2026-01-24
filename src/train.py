@@ -21,7 +21,6 @@ def train():
 
         df = pd.concat([X_uci, y_uci], axis=1)
 
-        # Find URL column
         url_col = next(col for col in df.columns if 'url' in col.lower())
         label_col = df.columns[-1]
 
@@ -29,7 +28,6 @@ def train():
         print(f"Label column: {label_col}")
         print(f"Label distribution:\n{df[label_col].value_counts()}")
 
-        # Normalize labels to binary 0/1 for training stability
         positive_names = {'phishing', 'phish', '1', 'true', 'yes', 'malicious', 'unsafe', 'suspicious', 'bad'}
 
         def is_positive(x):
@@ -40,7 +38,6 @@ def train():
             if sx in positive_names:
                 return 1
             try:
-                # numeric labels where 1 indicates phishing
                 if float(sx) == 1.0:
                     return 1
             except Exception:
@@ -51,12 +48,10 @@ def train():
         print(f"Binary label distribution:\n{df['label_bin'].value_counts()}")
         label_col = 'label_bin'
 
-        # Remove duplicate URLs
         initial_count = len(df)
         df = df.drop_duplicates(subset=[url_col])
         print(f"Removed {initial_count - len(df)} duplicate URLs")
 
-        # Train / Test split
         train_df, test_df = train_test_split(
             df,
             test_size=0.2,
@@ -67,7 +62,6 @@ def train():
         print(f"Training samples: {len(train_df)}")
         print(f"Testing samples: {len(test_df)}")
 
-        # Feature extraction
         print("Extracting features...")
         X_train = pd.DataFrame(
             train_df[url_col].astype(str).apply(extract_features).tolist(),
@@ -84,7 +78,6 @@ def train():
         print(f"Features used ({len(get_feature_names())}):")
         print(get_feature_names())
 
-        # Base model
         base_clf = RandomForestClassifier(
             n_estimators=300,
             max_depth=20,
@@ -101,9 +94,7 @@ def train():
         print("\nTraining final base model...")
         base_clf.fit(X_train, y_train)
 
-        # Calibrate probabilities for more reliable confidence scores
         print("\nCalibrating probabilities (CalibratedClassifierCV)...")
-        # Use `estimator=` for compatibility with different sklearn versions
         calib_clf = CalibratedClassifierCV(estimator=RandomForestClassifier(
             n_estimators=300,
             max_depth=20,

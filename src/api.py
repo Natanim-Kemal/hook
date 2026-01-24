@@ -2,8 +2,63 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import joblib
 import pandas as pd
+import numpy as np
 from feature_extraction import extract_features, get_feature_names
 import os
+
+def calculate_feature_based_confidence(features, prediction, model_prob):
+    feature_names = get_feature_names()
+    feature_dict = dict(zip(feature_names, features))
+    
+    risk_weights = {
+        'has_ip': 0.15,
+        'has_https': -0.12,
+        'has_sus_tld': 0.12,
+        'sus_words_count': 0.08,
+        'has_at_symbol': 0.10,
+        'has_double_slash': 0.08,
+        'digit_count': 0.03,
+        'special_char_count': 0.02,
+        'url_len': 0.02,
+        'subdomain_count': 0.03,
+        'has_hyphen_domain': 0.04,
+        'path_length': 0.02,
+        'query_param_count': 0.02,
+        'entropy': 0.03,
+    }
+    
+    risk_score = 0.5
+    
+    for feature, weight in risk_weights.items():
+        if feature in feature_dict:
+            value = feature_dict[feature]
+            if feature == 'url_len':
+                value = min(value / 100, 1.0)
+            elif feature == 'digit_count':
+                value = min(value / 20, 1.0)
+            elif feature == 'special_char_count':
+                value = min(value / 10, 1.0)
+            elif feature == 'subdomain_count':
+                value = min(value / 5, 1.0)
+            elif feature == 'sus_words_count':
+                value = min(value / 3, 1.0)
+            elif feature == 'path_length':
+                value = min(value / 50, 1.0)
+            elif feature == 'query_param_count':
+                value = min(value / 5, 1.0)
+            elif feature == 'entropy':
+                value = min(value / 5, 1.0)
+            
+            risk_score += weight * value
+    
+    risk_score = max(0.1, min(0.95, risk_score))
+    
+    if prediction == 0:
+        confidence = 0.5 + (risk_score * 0.4) + (model_prob * 0.1)
+    else:
+        confidence = 0.5 + ((1 - risk_score) * 0.4) + (model_prob * 0.1)
+    
+    return max(0.55, min(0.98, confidence)), risk_score
 
 app = Flask(__name__)
 CORS(app)
@@ -36,7 +91,6 @@ def load_model_and_scaler():
         print(f"Error loading model/scaler: {e}")
         return False
 
-# Load on startup
 load_model_and_scaler()
 
 def reload_if_needed():
@@ -57,36 +111,32 @@ def predict():
     url = data['url'].strip()
 
     try:
-        # Extract features from the input URL
         features = extract_features(url)
         features_df = pd.DataFrame([features], columns=get_feature_names())
 
-        # Scale features if scaler is available
         if scaler is not None:
             features_scaled = scaler.transform(features_df)
         else:
             features_scaled = features_df.values
 
-        # Predict
         prediction = model.predict(features_scaled)[0]
-        probs = model.predict_proba(features_scaled)[0]
+        raw_probs = model.predict_proba(features_scaled)[0]
+        
+        confidence, risk_score = calculate_feature_based_confidence(
+            features, prediction, raw_probs[prediction]
+        )
 
-        # IMPORTANT: In PhiUSIIL dataset:
-        # Class 0 = Phishing
-        # Class 1 = Legitimate
-        # predict_proba returns [prob_phishing, prob_legitimate]
-        phishing_prob = float(probs[0])
-        legitimate_prob = float(probs[1]) if len(probs) > 1 else 1.0 - phishing_prob
-
-        confidence = float(probs[prediction])  # Confidence in the final decision
+        phishing_prob = float(raw_probs[0])
+        legitimate_prob = float(raw_probs[1]) if len(raw_probs) > 1 else 1.0 - phishing_prob
 
         result = "PHISHING" if prediction == 0 else "LEGITIMATE"
 
         return jsonify({
             'url': url,
             'result': result,
-            'confidence': confidence,           # How sure the model is about its decision
-            'phishing_score': phishing_prob,    # Probability it's phishing (0.0 to 1.0)
+            'confidence': confidence,
+            'risk_score': risk_score,
+            'phishing_score': phishing_prob,
             'legitimate_score': legitimate_prob
         })
 
@@ -105,7 +155,6 @@ def health():
 
 @app.route('/reload', methods=['POST'])
 def reload():
-    """Manually trigger reload of model and scaler (useful after retraining)"""
     global model, scaler
     model = None
     scaler = None

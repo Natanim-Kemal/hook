@@ -1,11 +1,8 @@
-// popup.js - Updated & Fixed Version
-
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('checkBtn').addEventListener('click', rescanCurrentTab);
-  loadCurrentTabResult(); // Load on open
+  loadCurrentTabResult();
 });
 
-// Load result (from cache or trigger scan via background)
 async function loadCurrentTabResult() {
   const statusDiv = document.getElementById('status');
   const urlDiv = document.getElementById('url');
@@ -23,21 +20,18 @@ async function loadCurrentTabResult() {
 
   urlDiv.textContent = tab.url;
 
-  // First, try to get cached result (same as background uses)
   const cacheKey = `scan_${tab.url}`;
   const cached = await chrome.storage.local.get(cacheKey);
 
-  if (cached[cacheKey] && Date.now() - cached[cacheKey].timestamp < 24*60*60*1000) {
+  if (cached[cacheKey] && Date.now() - cached[cacheKey].timestamp < 24 * 60 * 60 * 1000) {
     displayResult(cached[cacheKey].payload);
     return;
   }
 
-  // No cache → ask background to scan (respects whitelist, cache, etc.)
   statusDiv.textContent = "Scanning...";
   chrome.runtime.sendMessage({ action: "SCAN_CURRENT_TAB" });
 }
 
-// Listen for updates from background script
 chrome.runtime.onMessage.addListener((message) => {
   if (message.action === "UPDATE_DETAILS" && message.data) {
     displayResult(message.data);
@@ -67,7 +61,6 @@ function displayResult(data) {
     statusDiv.className = "status-text safe";
   }
 
-  // Show confidence (how sure the model is)
   const confidencePercent = data.confidence ? (data.confidence * 100).toFixed(1) : "--";
   detailsDiv.textContent = `${confidencePercent}% confident`;
 }

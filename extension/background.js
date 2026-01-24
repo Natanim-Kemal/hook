@@ -1,11 +1,8 @@
-// background.js
-
 import { WHITELIST } from './whitelist.js';
 
 const API_URL = 'http://127.0.0.1:5000/predict';
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
-// Listen for tab updates (page fully loaded)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url) {
         handleUrlChange(tabId, tab.url);
@@ -132,10 +129,10 @@ function updateStatus(tabId, data, fromCache) {
             priority: 2
         });
 
-        chrome.tabs.sendMessage(tabId, { 
-            action: "SHOW_WARNING", 
-            data: data 
-        }).catch(() => {});
+        chrome.tabs.sendMessage(tabId, {
+            action: "SHOW_WARNING",
+            data: data
+        }).catch(() => { });
     } else {
         chrome.action.setBadgeText({ text: 'OK', tabId });
         chrome.action.setBadgeBackgroundColor({ color: '#34C759', tabId });
@@ -145,14 +142,12 @@ function updateStatus(tabId, data, fromCache) {
         }, 3000);
     }
 
-    // Critical: Send result to popup for BOTH cases!
     chrome.runtime.sendMessage({
         action: "UPDATE_DETAILS",
         data: data
-    }).catch(() => {}); // Popup may be closed
+    }).catch(() => { });
 }
 
-// Allow popup to trigger a fresh scan
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "SCAN_CURRENT_TAB") {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -160,6 +155,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 handleUrlChange(tabs[0].id, tabs[0].url);
             }
         });
-        return true; // Keep message channel open if needed
+        return true;
     }
 });
