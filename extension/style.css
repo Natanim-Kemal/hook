@@ -84,6 +84,21 @@ body {
   color: #1C1C1E;
 }
 
+.explanations-text {
+  font-size: 14px;
+  color: #1C1C1E;
+  line-height: 1.4;
+}
+
+.explanations-text ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.explanations-text li {
+  margin-bottom: 4px;
+}
+
 .actions {
   margin-top: 8px;
 }

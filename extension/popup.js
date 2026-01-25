@@ -39,8 +39,12 @@ chrome.runtime.onMessage.addListener((message) => {
 });
 
 function displayResult(data) {
+  console.log('displayResult called with data:', data); // Debug log
+  
   const statusDiv = document.getElementById('status');
   const detailsDiv = document.getElementById('details');
+  const explanationsCard = document.getElementById('explanations-card');
+  const explanationsDiv = document.getElementById('explanations');
 
   statusDiv.classList.remove('checking');
 
@@ -48,6 +52,7 @@ function displayResult(data) {
     statusDiv.textContent = "Error";
     statusDiv.style.color = "#FF3B30";
     detailsDiv.textContent = "Server error";
+    explanationsCard.style.display = "none";
     return;
   }
 
@@ -61,8 +66,20 @@ function displayResult(data) {
     statusDiv.className = "status-text safe";
   }
 
-  const confidencePercent = data.confidence ? (data.confidence * 100).toFixed(1) : "--";
+  // Show confidence - use either confidence or probability
+  const confidence = data.confidence || data.probability || 0;
+  console.log('Confidence value:', confidence, 'from data.confidence:', data.confidence, 'data.probability:', data.probability); // Debug log
+  const confidencePercent = (confidence * 100).toFixed(1);
   detailsDiv.textContent = `${confidencePercent}% confident`;
+
+  // Show explanations for phishing sites
+  if (isPhishing && data.explanations && data.explanations.length > 0) {
+    explanationsCard.style.display = "block";
+    const explanationsList = data.explanations.map(exp => `<li>${exp}</li>`).join('');
+    explanationsDiv.innerHTML = `<ul>${explanationsList}</ul>`;
+  } else {
+    explanationsCard.style.display = "none";
+  }
 }
 
 function rescanCurrentTab() {

@@ -6,6 +6,48 @@ import numpy as np
 from feature_extraction import extract_features, get_feature_names
 import os
 
+def get_phishing_explanation(features):
+    """Generate explanation for why a URL is flagged as phishing"""
+    feature_names = get_feature_names()
+    feature_dict = dict(zip(feature_names, features))
+    
+    explanations = []
+    
+    if feature_dict.get('has_ip', 0):
+        explanations.append("Uses IP address instead of domain name")
+    
+    if not feature_dict.get('has_https', 0):
+        explanations.append("Not using secure HTTPS connection")
+    
+    if feature_dict.get('has_sus_tld', 0):
+        explanations.append("Uses suspicious domain extension (.tk, .ml, .ga, etc.)")
+    
+    if feature_dict.get('sus_words_count', 0) > 0:
+        explanations.append("Contains suspicious words (login, secure, verify, etc.)")
+    
+    if feature_dict.get('has_at_symbol', 0):
+        explanations.append("Contains @ symbol (potential redirect)")
+    
+    if feature_dict.get('has_hyphen_domain', 0):
+        explanations.append("Domain contains hyphens (potential typosquatting)")
+    
+    if feature_dict.get('url_len', 0) > 100:
+        explanations.append("Unusually long URL")
+    
+    if feature_dict.get('subdomain_count', 0) > 3:
+        explanations.append("Too many subdomains")
+    
+    if feature_dict.get('digit_count', 0) > 10:
+        explanations.append("Contains many digits")
+    
+    if feature_dict.get('special_char_count', 0) > 5:
+        explanations.append("Contains many special characters")
+    
+    if feature_dict.get('has_double_slash', 0):
+        explanations.append("Contains double slashes (potential redirect)")
+    
+    return explanations
+
 def calculate_feature_based_confidence(features, prediction, model_prob):
     feature_names = get_feature_names()
     feature_dict = dict(zip(feature_names, features))
@@ -130,17 +172,25 @@ def predict():
         prediction = model.predict(features_scaled)[0]
         probs = model.predict_proba(features_scaled)[0]
         
-        # Classes are [0, 1] where 0=legitimate, 1=phishing
-        phishing_prob = probs[1] if len(probs) > 1 else probs[0]
+        # Classes are [0, 1] but the model seems to be inverted
+        # Based on testing, class 0 is actually phishing, class 1 is legitimate
+        phishing_prob = probs[0] if len(probs) > 1 else (1 - probs[0])
         
-        result = "PHISHING" if prediction == 1 else "LEGITIMATE"
+        result = "PHISHING" if prediction == 0 else "LEGITIMATE"
         confidence = probs[prediction]
+        
+        # Get explanations for phishing detection
+        explanations = []
+        if prediction == 0:  # If phishing
+            explanations = get_phishing_explanation(features)
         
         return jsonify({
             'url': url,
             'result': result,
             'probability': float(confidence),
-            'phishing_score': float(phishing_prob)
+            'phishing_score': float(phishing_prob),
+            'confidence': float(confidence),
+            'explanations': explanations
         })
 
     except Exception as e:
