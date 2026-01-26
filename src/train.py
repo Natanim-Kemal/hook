@@ -109,7 +109,7 @@ def train():
         print(confusion_matrix(y_test, y_pred))
         
         print("\nFeature Importance:")
-        importances = clf.feature_importances_
+        importances = base_clf.feature_importances_
         for name, imp in sorted(zip(get_feature_names(), importances), key=lambda x: -x[1]):
             print(f"  {name}: {imp:.4f}")
 
