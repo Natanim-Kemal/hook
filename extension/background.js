@@ -17,7 +17,8 @@ async function handleUrlChange(tabId, url) {
 
     const domain = getDomain(url);
     if (isWhitelisted(domain)) {
-        updateStatus(tabId, { result: 'LEGITIMATE', url: url }, true);
+        const fakeData = { result: 'LEGITIMATE', url: url, confidence: 1.0 };
+        updateStatus(tabId, fakeData, true);
         return;
     }
 

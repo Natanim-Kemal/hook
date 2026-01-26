@@ -122,25 +122,22 @@ def predict():
         prediction = model.predict(features_scaled)[0]
         raw_probs = model.predict_proba(features_scaled)[0]
         
-        if scaler is not None:
-            features_scaled = scaler.transform(features_df)
-        else:
-            features_scaled = features_df.values
-        
-        prediction = model.predict(features_scaled)[0]
-        probs = model.predict_proba(features_scaled)[0]
-        
-        # Classes are [0, 1] where 0=legitimate, 1=phishing
-        phishing_prob = probs[1] if len(probs) > 1 else probs[0]
-        
-        result = "PHISHING" if prediction == 1 else "LEGITIMATE"
-        confidence = probs[prediction]
-        
+        confidence, risk_score = calculate_feature_based_confidence(
+            features, prediction, raw_probs[prediction]
+        )
+
+        phishing_prob = float(raw_probs[0])
+        legitimate_prob = float(raw_probs[1]) if len(raw_probs) > 1 else 1.0 - phishing_prob
+
+        result = "PHISHING" if prediction == 0 else "LEGITIMATE"
+
         return jsonify({
             'url': url,
             'result': result,
-            'probability': float(confidence),
-            'phishing_score': float(phishing_prob)
+            'confidence': confidence,
+            'risk_score': risk_score,
+            'phishing_score': phishing_prob,
+            'legitimate_score': legitimate_prob
         })
 
     except Exception as e:

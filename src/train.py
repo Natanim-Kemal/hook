@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
@@ -67,8 +68,8 @@ def train():
         for i, name in enumerate(get_feature_names()):
             print(f"  {name}: mean={X_train_scaled[:,i].mean():.3f}, std={X_train_scaled[:,i].std():.3f}")
 
-        print("\nTraining Random Forest model (n_estimators=200)...")
-        clf = RandomForestClassifier(
+        print("\nTraining final base model...")
+        base_clf = RandomForestClassifier(
             n_estimators=200, 
             random_state=42, 
             n_jobs=-1,
@@ -76,11 +77,20 @@ def train():
             min_samples_split=5,
             class_weight='balanced'
         )
+        base_clf.fit(X_train_scaled, y_train) # Fit base model to get feature importances later
+
+        print("\nCalibrating probabilities (CalibratedClassifierCV)...")
+        calib_clf = CalibratedClassifierCV(estimator=RandomForestClassifier(
+            n_estimators=200, 
+            random_state=42, 
+            n_jobs=-1,
+            max_depth=20,
+            min_samples_split=5,
+            class_weight='balanced'
+        ), cv=5, method='sigmoid')
         
-        cv_scores = cross_val_score(clf, X_train_scaled, y_train, cv=5)
-        print(f"Cross-Validation Accuracy (Train): {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
-        
-        clf.fit(X_train_scaled, y_train)
+        calib_clf.fit(X_train_scaled, y_train)
+        clf = calib_clf # Use calibrated model for prediction
 
         print("\n--- Final Evaluation on Test Set ---")
         y_pred = clf.predict(X_test_scaled)
