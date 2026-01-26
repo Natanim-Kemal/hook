@@ -77,6 +77,12 @@ def train():
             min_samples_split=5,
             class_weight='balanced'
         )
+        
+        print("\nPerforming cross-validation on training set...")
+        cv_scores = cross_val_score(base_clf, X_train_scaled, y_train, cv=5, scoring='accuracy', n_jobs=-1)
+        print(f"Cross-validation scores: {cv_scores}")
+        print(f"Mean CV accuracy: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+        
         base_clf.fit(X_train_scaled, y_train) # Fit base model to get feature importances later
 
         print("\nCalibrating probabilities (CalibratedClassifierCV)...")
@@ -103,7 +109,7 @@ def train():
         print(confusion_matrix(y_test, y_pred))
         
         print("\nFeature Importance:")
-        importances = clf.feature_importances_
+        importances = base_clf.feature_importances_
         for name, imp in sorted(zip(get_feature_names(), importances), key=lambda x: -x[1]):
             print(f"  {name}: {imp:.4f}")
 
